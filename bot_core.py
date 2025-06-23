@@ -1,5 +1,4 @@
 import aiogram
-import cv2
 import asyncio
 import os
 from pathlib import Path
@@ -7,7 +6,6 @@ from utils import *
 from decouple import config
 from aiogram.filters.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
-from asgiref.sync import sync_to_async
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command, Filter
 
