@@ -42,20 +42,20 @@ async def run_wolphramscript(chat_id: int, file_path: str, namimg: str):
     with open(os.path.join(work_folder, "test.txt"), "w") as f:
         f.write("test")
 
-    # running_process = await asyncio.create_subprocess_exec(
-    #     "wolphramscript",
-    #     "-f",
-    #     file_path,
-    #     stdout=asyncio.subprocess.PIPE,
-    #     stderr=asyncio.subprocess.PIPE
-    # )
-    # stdout, stderr = await running_process.communicate()
+    running_process = await asyncio.create_subprocess_exec(
+        "wolphramscript",
+        "-f",
+        file_path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await running_process.communicate()
     
-    # with open(out_file_name, "w") as out:
-    #     if stdout:
-    #         out.write(str(stdout))
-    #     if stderr:
-    #         out.write(str(stderr))
+    with open(out_file_name, "w") as out:
+        if stdout:
+            out.write(str(stdout))
+        if stderr:
+            out.write(str(stderr))
 
     files_after_run = [os.path.join(work_folder, x) for x in os.listdir(work_folder)]
 
