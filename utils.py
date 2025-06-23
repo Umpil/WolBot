@@ -4,11 +4,8 @@ media_folder = "UserFiles"
 
 def parse_file(filename: str, out_filename=None):
     if not out_filename:
-        filename_splitted = filename.split("\\")
-        out_filename = ""
-        while len(filename_splitted) != 1:
-            out_filename = os.path.join(out_filename, filename_splitted.pop(0))
-        out_filename =  os.path.join(out_filename, Path(filename).stem + "_parsed.wl")
+        path = Path(filename)
+        out_filename = str(path.parent / (path.stem + "_parsed.wl"))
     with open(filename, "r") as file:
         file_lines = file.readlines()
 

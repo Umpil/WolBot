@@ -30,7 +30,8 @@ async def start_polling():
     await dp.start_polling(bot, relax=0.1, reset_webhook=True)
 
 async def run_wolphramscript(chat_id: int, file_path: str, namimg: str):
-    work_folder = "\\".join(file_path.split("\\")[0: -1])
+    path = Path(file_path)
+    work_folder = path.parent
     except_files = [os.path.join(work_folder, namimg + ".wl"), file_path]
     out_file_name = os.path.join(work_folder, "output.txt")
     
