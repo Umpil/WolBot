@@ -41,7 +41,7 @@ async def run_wolphramscript(chat_id: int, file_path: str, namimg: str):
         f.write("test")
 
     running_process = await asyncio.create_subprocess_exec(
-        "wolphramscript",
+        "wolframscript",
         "-f",
         file_path,
         stdout=asyncio.subprocess.PIPE,
