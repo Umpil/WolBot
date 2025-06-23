@@ -36,8 +36,8 @@ async def run_wolphramscript(chat_id: int, file_path: str, namimg: str):
     except_files = [os.path.join(work_folder, namimg + ".wl"), file_path]
     out_file_name = os.path.join(work_folder, "output.txt")
     
-    with open(out_file_name, "w") as f:
-        f.write("dddd")
+    # with open(out_file_name, "w") as f:
+    #     f.write("dddd")
 
     with open(os.path.join(work_folder, "test.txt"), "w") as f:
         f.write("test")
