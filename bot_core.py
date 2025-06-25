@@ -123,9 +123,15 @@ async def cancel_running(message: types.Message, state: FSMContext):
                 except:
                     await message.answer("Ошибка при отмене процесса")
                 finally:
+                    return await state.set_state(ProcessingStates.NOTHING)
+            else:
+                if DEBUG:
                     await state.set_state(ProcessingStates.NOTHING)
+                    return await message.answer("DEBUG MODE")
+                await state.set_state(ProcessingStates.NOTHING)
+                return await message.answer("Отсутствуют запущенные скрипты")
         else:
-            await message.answer("Отсутсвуют запущенные скрипты")
+            return await message.answer("Отсутсвуют запущенные скрипты")
 
 
 @dp.message(F.media_group_id, F.document)
@@ -169,7 +175,9 @@ async def handle_media_group(message: types.Message, state: FSMContext):
                     await message.answer("Файлы приняты в обработку")
                     return await run_wolphramscript(message.from_user.id, parsed_filename, now_name)
                 except ValueError:
-                    return await message.answer("Internal error")
+                    if DEBUG:
+                        return await message.answer("Error Handle group")
+                    return await message.answer("Внутренная ошибка")
             else:
                 wl_files = [document.file_name for document, flag in zip(documents, check_list) if flag]
                 await state.update_data(documents=documents, wl_files=wl_files)
@@ -214,7 +222,7 @@ async def clarify_which_file_to_run(message: types.Message, state: FSMContext):
         wl_files: list[str] = data["wl_files"]
         documents: list[Document] = data["documents"]
         if message_text == "Отмена":
-            await state.set_state(ProcessingStates.NOTHING.state)
+            await state.set_state(ProcessingStates.NOTHING)
             return await message.answer("Отменено", reply_markup=types.ReplyKeyboardRemove())
         elif message_text not in wl_files:
             return await message.answer("Выберите название файла")
