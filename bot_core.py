@@ -18,6 +18,7 @@ dp = Dispatcher()
 DEBUG = config("DEBUG")
 
 ALLOWED_USERS = config("ALLOWED_USERS", cast=lambda v: [int(s.strip()) for s in v.split(',')])
+
 class ProcessingStates(StatesGroup):
     NOTHING = State()
     RUNNING = State()
@@ -27,6 +28,7 @@ class ProcessingStates(StatesGroup):
 async def start_polling():
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot, relax=0.1, reset_webhook=True)
+
 
 async def run_wolphramscript(chat_id: int, file_path: str, namimg: str, state: FSMContext):
     path = Path(file_path)
@@ -48,6 +50,7 @@ async def run_wolphramscript(chat_id: int, file_path: str, namimg: str, state: F
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
+        await state.update_data(process=running_process)
         stdout, stderr = await running_process.communicate()
         
         with open(out_file_name, "w") as out:
@@ -103,15 +106,33 @@ async def handle_start(message: types.Message):
     if message.from_user.id in ALLOWED_USERS:
         await message.answer("Файл .wl")
 
+
 @dp.message(Command("cancel"))
 async def cancel_running(message: types.Message, state: FSMContext):
-    print("ADD CANCEL")
+    if message.from_user.id in ALLOWED_USERS:
+        if await state.get_state() == ProcessingStates.RUNNING.state:
+            data = await state.get_data()
+            running_process = data["process"]
+            if running_process:
+                try:
+                    running_process.terminate()
+                    await asyncio.sleep(2)
+                    if running_process.returncode is None:
+                        running_process.kill()
+                    await message.answer("Процесс отменён")
+                except:
+                    await message.answer("Ошибка при отмене процесса")
+                finally:
+                    await state.set_state(ProcessingStates.NOTHING)
+        else:
+            await message.answer("Отсутсвуют запущенные скрипты")
+
 
 @dp.message(F.media_group_id, F.document)
 async def handle_media_group(message: types.Message, state: FSMContext):
     if message.from_user.id in ALLOWED_USERS:
         if await state.get_state() == ProcessingStates.RUNNING:
-            return await message.answer("отмена /cancel")
+            return await message.answer("отмена /cancel", reply_markup=types.ReplyKeyboardRemove())
         media_group_id = message.media_group_id
         media_groups[media_group_id].append(message.document)
         
@@ -156,6 +177,35 @@ async def handle_media_group(message: types.Message, state: FSMContext):
                 await message.answer(text="Выберите файл для запуска", reply_markup=keyboard)
                 await state.set_state(ProcessingStates.CLARIFY)
 
+
+@dp.message(F.document)
+async def handle_document(message: types.Message, state: FSMContext):
+    if message.from_user.id in ALLOWED_USERS:
+        if await state.get_state() == ProcessingStates.RUNNING.state:
+            return await message.answer("отмена /cancel", reply_markup=types.ReplyKeyboardRemove())
+        if await state.get_state() == ProcessingStates.CLARIFY.state:
+            await state.set_state(ProcessingStates.NOTHING.state, reply_markup=types.ReplyKeyboardRemove())
+        document = message.document
+        await message.answer(f"Файл {document.file_name}")
+        file_name = document.file_name
+        if not file_name.endswith(".wl"): 
+            return await message.answer("Bad wl")
+        file_id = document.file_id
+        file = await bot.get_file(file_id)
+        file_path = file.file_path
+        user_folder = hash_user_id(message.from_user.id)
+        now_name = Path(file_name).stem
+        now_folder = os.path.join(media_folder, user_folder, now_name)
+        if not os.path.exists(now_folder):
+            os.makedirs(now_folder, exist_ok=True)
+        destination = os.path.join(now_folder, file_name)
+        await bot.download_file(file_path=file_path, destination=destination)
+        parsed_filename = parse_file(destination)
+        await state.set_state(ProcessingStates.RUNNING)
+        await message.answer("Файл принят в обработку")
+        return await run_wolphramscript(message.from_user.id, parsed_filename, now_name, state)
+    
+
 @dp.message(ProcessingStates.CLARIFY)
 async def clarify_which_file_to_run(message: types.Message, state: FSMContext):
     if message.from_user.id in ALLOWED_USERS:
@@ -196,34 +246,6 @@ async def clarify_which_file_to_run(message: types.Message, state: FSMContext):
         await message.answer("Файлы приняты в обработку", reply_markup=types.ReplyKeyboardRemove())
         return await run_wolphramscript(message.from_user.id, parsed_filename, now_name, state)
 
-
-@dp.message(F.document)
-async def handle_document(message: types.Message, state: FSMContext):
-    if message.from_user.id in ALLOWED_USERS:
-        if await state.get_state() == ProcessingStates.RUNNING.state:
-            return await message.answer("отмена /cancel")
-        if await state.get_state() == ProcessingStates.CLARIFY.state:
-            await state.set_state(ProcessingStates.NOTHING.state)
-        document = message.document
-        await message.answer(f"Файл {document.file_name}")
-        file_name = document.file_name
-        if not file_name.endswith(".wl"): 
-            return await message.answer("Bad wl")
-        file_id = document.file_id
-        file = await bot.get_file(file_id)
-        file_path = file.file_path
-        user_folder = hash_user_id(message.from_user.id)
-        now_name = Path(file_name).stem
-        now_folder = os.path.join(media_folder, user_folder, now_name)
-        if not os.path.exists(now_folder):
-            os.makedirs(now_folder, exist_ok=True)
-        destination = os.path.join(now_folder, file_name)
-        await bot.download_file(file_path=file_path, destination=destination)
-        parsed_filename = parse_file(destination)
-        await state.set_state(ProcessingStates.WAITING_EXECUTION)
-        await message.answer("Файл принят в обработку")
-        return await run_wolphramscript(message.from_user.id, parsed_filename, now_name, state)
-        
 
 def create_keyboard(options: list[str], cancel_btn: str = "Отмена") -> ReplyKeyboardMarkup:
     keyboard = []
