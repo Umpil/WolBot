@@ -83,12 +83,12 @@ async def run_wolphramscript(chat_id: int, file_path: str, namimg: str, state: F
             if file_name.endswith((".jpg", ".png", ".tiff")):
                 photos_to_send.append(types.InputMediaPhoto(type="photo",
                                                             media=types.FSInputFile(file_name)
-                                                            )
+                                                        )
                                     )
             else:
                 documents_to_send.append(types.InputMediaDocument(type="document", 
                                                               media=types.FSInputFile(file_name)
-                                                              )
+                                                            )
                                     )
     if photos_to_send:
         await bot.send_media_group(chat_id, photos_to_send)
@@ -108,7 +108,8 @@ async def handle_start(message: types.Message, state: FSMContext):
         if user_state == ProcessingStates.RUNNING.state:
             state_data = await state.get_data()
             naming = state_data["naming"]
-            return await message.answer(f"У вас уже запущен процесс {naming}\nВы можете отменить его с помощью команды /cancel", reply_markup=types.ReplyKeyboardRemove())
+            return await message.answer(f"У вас уже запущен процесс {naming}\nВы можете отменить его с помощью команды /cancel",
+                                        reply_markup=types.ReplyKeyboardRemove())
         elif user_state == ProcessingStates.CLARIFY.state:
             return await message.answer("Выберите название файла")
         await message.answer(HELLO_WORD)
@@ -151,7 +152,8 @@ async def handle_media_group(message: types.Message, state: FSMContext):
         if await state.get_state() == ProcessingStates.RUNNING.state:
             state_data = await state.get_data()
             naming = state_data["naming"]
-            return await message.answer(f"У вас уже запущен процесс {naming}\nВы можете отменить его с помощью команды /cancel", reply_markup=types.ReplyKeyboardRemove())
+            return await message.answer(f"У вас уже запущен процесс {naming}\nВы можете отменить его с помощью команды /cancel",
+                                        reply_markup=types.ReplyKeyboardRemove())
         media_group_id = message.media_group_id
         media_groups[media_group_id].append(message.document)
         
@@ -186,7 +188,7 @@ async def handle_media_group(message: types.Message, state: FSMContext):
                         await bot.download_file(file_path=file_path, destination=destination)
                     await state.set_state(ProcessingStates.RUNNING)
                     await message.answer("Файлы приняты в обработку")
-                    return await run_wolphramscript(message.from_user.id, parsed_filename, now_name)
+                    return await run_wolphramscript(message.from_user.id, parsed_filename, now_name, state)
                 except ValueError:
                     if DEBUG:
                         return await message.answer("Error Handle group")
@@ -205,7 +207,8 @@ async def handle_document(message: types.Message, state: FSMContext):
         if await state.get_state() == ProcessingStates.RUNNING.state:
             state_data = await state.get_data()
             naming = state_data["naming"]
-            return await message.answer(f"У вас уже запущен процесс {naming}\nВы можете отменить его с помощью команды /cancel", reply_markup=types.ReplyKeyboardRemove())
+            return await message.answer(f"У вас уже запущен процесс {naming}\nВы можете отменить его с помощью команды /cancel", 
+                                        reply_markup=types.ReplyKeyboardRemove())
         if await state.get_state() == ProcessingStates.CLARIFY.state:
             await state.set_state(ProcessingStates.NOTHING.state, reply_markup=types.ReplyKeyboardRemove())
         document = message.document

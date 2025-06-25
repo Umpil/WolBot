@@ -8,7 +8,7 @@ HELLO_WORD = '''
 '''
 media_folder = "UserFiles"
 
-def parse_file(filename: str, out_filename=None):
+def parse_file(filename: str, out_filename=None) -> str:
     if not out_filename:
         path = Path(filename)
         out_filename = str(path.parent / (path.stem + "_parsed.wl"))
@@ -42,7 +42,7 @@ def parse_file(filename: str, out_filename=None):
 
     return out_filename
 
-def create_keyboard(options: list[str], cancel_btn: str = "Отмена") -> ReplyKeyboardMarkup:
+def create_keyboard(options: list[str]) -> ReplyKeyboardMarkup:
     keyboard = []
     row = []
     callback_data = 0
@@ -56,7 +56,7 @@ def create_keyboard(options: list[str], cancel_btn: str = "Отмена") -> Rep
     if row:
         keyboard.append(row)
 
-    keyboard.append([KeyboardButton(text=cancel_btn, callback_data="-1")])
+    keyboard.append([KeyboardButton(text="Отмена", callback_data="-1")])
     
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
