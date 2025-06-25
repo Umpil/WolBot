@@ -50,7 +50,7 @@ async def run_wolphramscript(chat_id: int, file_path: str, namimg: str, state: F
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        await state.update_data(process=running_process)
+        await state.update_data(process=running_process, namimg=namimg)
         stdout, stderr = await running_process.communicate()
         
         with open(out_file_name, "w") as out:
@@ -101,10 +101,21 @@ async def run_wolphramscript(chat_id: int, file_path: str, namimg: str, state: F
 
 
 @dp.message(Command("start"))
-async def handle_start(message: types.Message):
+async def handle_start(message: types.Message, state: FSMContext):
     print(message.from_user.id)
     if message.from_user.id in ALLOWED_USERS:
-        await message.answer("Файл .wl")
+        user_state = await state.get_state()
+        if user_state == ProcessingStates.RUNNING.state:
+            state_data = await state.get_data()
+            naming = state_data["naming"]
+            return await message.answer(f"У вас уже запущен процесс {naming}\nВы можете отменить его с помощью команды /cancel", reply_markup=types.ReplyKeyboardRemove())
+        elif user_state == ProcessingStates.CLARIFY.state:
+            return await message.answer("Выберите название файла")
+        await message.answer(HELLO_WORD)
+
+@dp.message(Command("help"))
+async def handle_help(message: types.Message, state: FSMContext):
+    return await handle_start(message, state)
 
 
 @dp.message(Command("cancel"))
@@ -137,8 +148,10 @@ async def cancel_running(message: types.Message, state: FSMContext):
 @dp.message(F.media_group_id, F.document)
 async def handle_media_group(message: types.Message, state: FSMContext):
     if message.from_user.id in ALLOWED_USERS:
-        if await state.get_state() == ProcessingStates.RUNNING:
-            return await message.answer("отмена /cancel", reply_markup=types.ReplyKeyboardRemove())
+        if await state.get_state() == ProcessingStates.RUNNING.state:
+            state_data = await state.get_data()
+            naming = state_data["naming"]
+            return await message.answer(f"У вас уже запущен процесс {naming}\nВы можете отменить его с помощью команды /cancel", reply_markup=types.ReplyKeyboardRemove())
         media_group_id = message.media_group_id
         media_groups[media_group_id].append(message.document)
         
@@ -190,7 +203,9 @@ async def handle_media_group(message: types.Message, state: FSMContext):
 async def handle_document(message: types.Message, state: FSMContext):
     if message.from_user.id in ALLOWED_USERS:
         if await state.get_state() == ProcessingStates.RUNNING.state:
-            return await message.answer("отмена /cancel", reply_markup=types.ReplyKeyboardRemove())
+            state_data = await state.get_data()
+            naming = state_data["naming"]
+            return await message.answer(f"У вас уже запущен процесс {naming}\nВы можете отменить его с помощью команды /cancel", reply_markup=types.ReplyKeyboardRemove())
         if await state.get_state() == ProcessingStates.CLARIFY.state:
             await state.set_state(ProcessingStates.NOTHING.state, reply_markup=types.ReplyKeyboardRemove())
         document = message.document

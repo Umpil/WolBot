@@ -1,6 +1,11 @@
 from pathlib import Path
 import os
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+HELLO_WORD = '''
+Данный бот позволяет запускать вольфрам скрипты.\n
+Поддерживаемый формат ".wl", допускается загрузка дополнительных файлов для работы скрипта.\n
+Возможен запуск только 1-го скрипта, для отмены запущенного скрипта используйте команду /cancel\n
+'''
 media_folder = "UserFiles"
 
 def parse_file(filename: str, out_filename=None):
