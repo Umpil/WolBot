@@ -31,11 +31,11 @@ async def start_polling():
 async def run_wolphramscript(chat_id: int, file_path: str, namimg: str, state: FSMContext):
     path = Path(file_path)
     work_folder = path.parent
-    except_files = [os.path.join(work_folder, namimg + ".wl"), file_path]
+    except_files = [os.path.join(work_folder, x) for x in os.listdir(work_folder)]
     out_file_name = os.path.join(work_folder, "output.txt")
+    if os.path.exists(out_file_name):
+        os.remove(out_file_name)
     
-    # with open(out_file_name, "w") as f:
-    #     f.write("dddd")
 
     with open(os.path.join(work_folder, "test.txt"), "w") as f:
         f.write("test")
@@ -56,6 +56,10 @@ async def run_wolphramscript(chat_id: int, file_path: str, namimg: str, state: F
             if stderr:
                 out.write(str(stderr))
 
+    else:
+        with open(out_file_name, "w") as f:
+            f.write("dddd")
+
     files_after_run = [os.path.join(work_folder, x) for x in os.listdir(work_folder)]
 
     # WOrk only with decimals
@@ -67,25 +71,28 @@ async def run_wolphramscript(chat_id: int, file_path: str, namimg: str, state: F
     #     else:
     #         pass
 
-    files_to_send = []
+    photos_to_send = []
+    documents_to_send = []
     # types.InputMediaPhoto() # for photo
     # types.InputMediaDocument() # for documets
     for file_name in files_after_run:
         if file_name not in except_files:
-            if file_name.endswith(("*jpg", ".png", "*tiff")):
-                files_to_send.append(types.InputMediaPhoto(type="photo",
+            if file_name.endswith((".jpg", ".png", ".tiff")):
+                photos_to_send.append(types.InputMediaPhoto(type="photo",
                                                             media=types.FSInputFile(file_name)
                                                             )
                                     )
             else:
-                files_to_send.append(types.InputMediaDocument(type="document", 
+                documents_to_send.append(types.InputMediaDocument(type="document", 
                                                               media=types.FSInputFile(file_name)
                                                               )
                                     )
-    if files_to_send:
-        await bot.send_media_group(chat_id, list(files_to_send))
-    else:
-        await bot.send_message(chat_id, "Отсутсвует вывод программы")
+    if photos_to_send:
+        await bot.send_media_group(chat_id, photos_to_send)
+    if documents_to_send:
+        await bot.send_media_group(chat_id, documents_to_send)
+    if not photos_to_send and not documents_to_send:
+        await bot.send_message(chat_id, "Отсутствует вывод программы")
     
     await state.set_state(ProcessingStates.NOTHING)
 
@@ -180,10 +187,13 @@ async def clarify_which_file_to_run(message: types.Message, state: FSMContext):
             destination = os.path.join(now_folder, document.file_name)
             await bot.download_file(file_path=wl_file_path, destination=destination)
             if document.file_name.endswith(".wl"):
-                parse_file(destination)
+                renamed_destination = os.path.join(now_folder, Path(document.file_name).stem + "_renamed.wl")
+                parsed_name = parse_file(destination)
+                os.rename(destination, renamed_destination)
+                os.rename(parsed_name, destination)
         
         await state.set_state(ProcessingStates.RUNNING)
-        await message.answer("Файлы приняты в обработку")
+        await message.answer("Файлы приняты в обработку", reply_markup=types.ReplyKeyboardRemove())
         return await run_wolphramscript(message.from_user.id, parsed_filename, now_name, state)
 
 
