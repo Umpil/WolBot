@@ -144,6 +144,47 @@ async def cancel_running(message: types.Message, state: FSMContext):
                 return await message.answer("Отсутствуют запущенные скрипты")
         else:
             return await message.answer("Отсутсвуют запущенные скрипты")
+        
+        
+@dp.message(ProcessingStates.CLARIFY)
+async def clarify_which_file_to_run(message: types.Message, state: FSMContext):
+    if message.from_user.id in ALLOWED_USERS:
+        message_text = message.text
+        data = await state.get_data()
+        wl_files: list[str] = data["wl_files"]
+        documents: list[Document] = data["documents"]
+        if message_text == "Отмена":
+            await state.set_state(ProcessingStates.NOTHING)
+            return await message.answer("Отменено", reply_markup=types.ReplyKeyboardRemove())
+        elif message_text not in wl_files:
+            return await message.answer("Выберите название файла")
+        wl_document = [document for document in documents if document.file_name == message_text][0]
+        documents.remove(wl_document)
+        wl_file = await bot.get_file(wl_document.file_id)
+        wl_file_path = wl_file.file_path
+        user_folder = hash_user_id(message.from_user.id)
+        now_name = Path(wl_document.file_name).stem
+        now_folder = os.path.join(media_folder, user_folder, now_name)
+        if not os.path.exists(now_folder):
+            os.makedirs(now_folder, exist_ok=True)
+        destination = os.path.join(now_folder, wl_document.file_name)
+        await bot.download_file(file_path=wl_file_path, destination=destination)
+        parsed_filename = parse_file(destination)
+        for document in documents:
+            # File size ???
+            wl_file = await bot.get_file(document.file_id)
+            wl_file_path = wl_file.file_path
+            destination = os.path.join(now_folder, document.file_name)
+            await bot.download_file(file_path=wl_file_path, destination=destination)
+            if document.file_name.endswith(".wl"):
+                renamed_destination = os.path.join(now_folder, Path(document.file_name).stem + "_renamed.wl")
+                parsed_name = parse_file(destination)
+                os.rename(destination, renamed_destination)
+                os.rename(parsed_name, destination)
+        
+        await state.set_state(ProcessingStates.RUNNING)
+        await message.answer("Файлы приняты в обработку", reply_markup=types.ReplyKeyboardRemove())
+        return await run_wolphramscript(message.from_user.id, parsed_filename, now_name, state)
 
 
 @dp.message(F.media_group_id, F.document)
@@ -232,44 +273,6 @@ async def handle_document(message: types.Message, state: FSMContext):
         return await run_wolphramscript(message.from_user.id, parsed_filename, now_name, state)
     
 
-@dp.message(ProcessingStates.CLARIFY)
-async def clarify_which_file_to_run(message: types.Message, state: FSMContext):
-    if message.from_user.id in ALLOWED_USERS:
-        message_text = message.text
-        data = await state.get_data()
-        wl_files: list[str] = data["wl_files"]
-        documents: list[Document] = data["documents"]
-        if message_text == "Отмена":
-            await state.set_state(ProcessingStates.NOTHING)
-            return await message.answer("Отменено", reply_markup=types.ReplyKeyboardRemove())
-        elif message_text not in wl_files:
-            return await message.answer("Выберите название файла")
-        wl_document = [document for document in documents if document.file_name == message_text][0]
-        documents.remove(wl_document)
-        wl_file = await bot.get_file(wl_document.file_id)
-        wl_file_path = wl_file.file_path
-        user_folder = hash_user_id(message.from_user.id)
-        now_name = Path(wl_document.file_name).stem
-        now_folder = os.path.join(media_folder, user_folder, now_name)
-        if not os.path.exists(now_folder):
-            os.makedirs(now_folder, exist_ok=True)
-        destination = os.path.join(now_folder, wl_document.file_name)
-        await bot.download_file(file_path=wl_file_path, destination=destination)
-        parsed_filename = parse_file(destination)
-        for document in documents:
-            # File size ???
-            wl_file = await bot.get_file(document.file_id)
-            wl_file_path = wl_file.file_path
-            destination = os.path.join(now_folder, document.file_name)
-            await bot.download_file(file_path=wl_file_path, destination=destination)
-            if document.file_name.endswith(".wl"):
-                renamed_destination = os.path.join(now_folder, Path(document.file_name).stem + "_renamed.wl")
-                parsed_name = parse_file(destination)
-                os.rename(destination, renamed_destination)
-                os.rename(parsed_name, destination)
-        
-        await state.set_state(ProcessingStates.RUNNING)
-        await message.answer("Файлы приняты в обработку", reply_markup=types.ReplyKeyboardRemove())
-        return await run_wolphramscript(message.from_user.id, parsed_filename, now_name, state)
+
 
 asyncio.run(start_polling())
