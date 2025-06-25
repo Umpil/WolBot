@@ -254,23 +254,4 @@ async def clarify_which_file_to_run(message: types.Message, state: FSMContext):
         await message.answer("Файлы приняты в обработку", reply_markup=types.ReplyKeyboardRemove())
         return await run_wolphramscript(message.from_user.id, parsed_filename, now_name, state)
 
-
-def create_keyboard(options: list[str], cancel_btn: str = "Отмена") -> ReplyKeyboardMarkup:
-    keyboard = []
-    row = []
-    callback_data = 0
-    for option in options:
-        row.append(KeyboardButton(text=option, callback_data=str(callback_data)))
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
-        callback_data += 1
-    
-    if row:
-        keyboard.append(row)
-
-    keyboard.append([KeyboardButton(text=cancel_btn, callback_data="-1")])
-    
-    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
-
 asyncio.run(start_polling())
